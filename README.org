@@ -1,0 +1,107 @@
+#+TITLE: Parcoursup, petit exercice d'algorithmique
+
+On fait beaucoup de reproches à Parcoursup, notamment celui-ci que la phase finale est très longue: il faut parfois un temps considérable pour qu'un·e candidat·e sache si sa formation préférée va l'accepter ou non.  Cette longueur est due à un choix que je crois politique, qui est que les élèves ne peuvent pas indiquer d'ordre de préférence.  Si je me souviens bien, ce choix a été fait pour pallier aux inquiétudes des organisations lycéennes qui craignaient que cette information ne serve aux établissements à éliminer d'emblée les candidatures qui ne les placeraient pas assez haut.  Je ne sais pas bien ce que vaut cet argument (à mon avis, pas grand chose: on aurait pu demander aux élèves d'entrer leurs préférences après la transmission des dossiers, par exemple).
+
+En l'état, voilà comment fonctionne Parcoursup.  Les dossiers des élèves sont transmis aux établissement auxquels elles et ils candidatent, qui en font des trucs indéterminés mais qui finissent par renvoyer une liste /ordonnée/ de candidatures (de toutes les candidatures, pour les formations dites non-sélectives, ou d'un sous-ensemble pour les autres).
+Les candidat·e·s sont donc, sur chaque vœu:
+
+ 1. Éliminés
+ 2. Admis: c'est-à-dire classé·e·s à un rang inférieur ou égal à la capacité d'accueil de la formation),
+ 3. Sur liste d'attente: dans le cas où leur rang est supérieur à la capacité d'accueil).
+
+Ils et elles sont ensuite invité·e·s à confirmer certains choix, définitivement ou temporairement, ou à se désister d'emblée des formations qui ne les intéressent plus.  Les délais sont brefs (48h environ), mais très longs à l'échelle du système, qui gère les vœux de quelques centaines de milliers de candidats.
+
+Ce que je veux essayer de faire ici, c'est le petit exercice d'automatiser cette étape, en fonction d'un ordre de préférence fourni par chaque candidat.
+
+L'algorithme naïf ressemble à ça.  Chaque paire (candidat, formation) se voit associer deux valeurs:
+
+ 1. Un *ordre* dans les préférences du ou de la candidat·e.
+ 2. Un *rang* dans la classement propre à la formation; et donc un *état*: admis (rang ≤ capacité) ou sur liste d'attente.
+
+#+begin_example
+  Pour chaque candidat c:
+    soit fs les formations où état(c,f) = admis
+    abandonner toutes les candidatures sauf celle dont le rang dont la préférence est la plus élevée.
+
+  Pour chaque formation f:
+    si f est le premier choix de tous les candidats admis dans f, supprimer toutes les autres candidatures, retirer la formation du système (la liste est close)
+#+end_example
+
+Et on répète l'opération de manière tant qu'une étape a conduit à abandonner au moins une candidature (puisque cela a potentiellement libéré une place)
+
+Cette solution est équivalente à la situation actuelle, sauf qu'elle se calcule en un temps très raisonnable.  Mais elle n'est pas parfaite. En effet, à l'issue de cette série d'opérations, on peut se trouver dans deux états:
+
+ - Un *état optimal*, où chaque candidat est admis dans au plus une formation (un candidat peut être éliminé partout; ce n'est pas optimal pour lui ou elle, mais du point de vue du système c'est la meilleure solution)
+ - Un autre état, nettement plus probable, ou certains candidats sont admis dans une formation de préférence n > 1 et en attente dans leurs formations de préférence n′ < n.  C'est plus clair avec un schéma:
+
+   | Rang | Formation A (capacité=100)   | Formation B (capacité=100)     |
+   |------+------------------------------+--------------------------------|
+   |    1 | Roger Mexico (préférence=2)  | Ned Pointsman (préférence=2)   |
+   |  ... | ...                          | ...                            |
+   |  101 | Ned Pointsman (préférence=1) | Roger Mexico (préférence=1)    |
+
+Ici, Roger et Ned sont admis dans leur second vœu (pas mal), mais se bloquent mutuellement l'accès à leur premier vœu.  Cette situation, dans Parcoursup, n'a pas de solution: Roger fera la formation A, Ned la formation B.  Ici, on voit qu'elle a une solution triviale: abandonner simultanément les deux candidatures, pour faire rentrer les deux candidats dans leur premier vœu.  Le problème est de généraliser cette solution.  En effet, on peut imaginer des cycles plus longs (capacité=100 toujours):
+
+| Rang | Formation A (c=100)   | Formation B (c=100)   | Formation C (c=100) | Formation D (c=100)) |
+|------+-----------------------+-----------------------+---------------------+----------------------|
+|    1 | Alcibiabe (préf=2)    | Bob l'éponge (préf=2) | Castor (préf=2)     | Diotime (préf=2)     |
+|  ... | ...                   | ...                   | ...                 | ...                  |
+|  101 | Bob l'éponge (préf=1) | Castor (préf=1)       | Diotime (préf=1)    | Alcibiade (préf=1)   |
+
+Dans ce second scénario, le cycle est nettement plus long. Alcibiade, si on lui fait abandonner la formation A, libère une place à Bob l'éponge, qui libère donc une place à Castor, qui lui même laisse passer Diotime, qui permet enfin à Alcibiade d'accéder à sa formation préférée.
+
+Dans la pire situation possible, les candidats ne sont admis que sur leur dernier vœu, et le blocage met aussi en jeu la possibilité de faire remonter des vœux secondaires.  Ça veut aussi dire que plusieurs cycles devront potentiellement être résolus avant de placer un candidat en position d'admis sur un vœu.
+
+Un scénario catastrophe. Les formations ont maintenant une capacité d'accueil de 1.
+
+| Rang | $F_A$ | $F_B$ | $F_C$ | $F_D$ | $F_E$ | $F_F$ | $F_G$ | $F_H$ | $F_I$ | $F_J$ | Préférence |
+|------+-------+-------+-------+-------+-------+-------+-------+-------+-------+-------+------------|
+|    1 | B     | C     | D     | E     | F     | G     | H     | I     | J     | A     |         10 |
+|    2 | C     | D     | E     | F     | G     | H     | I     | J     | A     | B     |          9 |
+|    3 | D     | E     | F     | G     | H     | I     | J     | A     | B     | C     |          8 |
+|    4 | E     | F     | G     | H     | I     | J     | A     | B     | C     | D     |          7 |
+|    5 | F     | G     | H     | I     | J     | A     | B     | C     | D     | E     |          6 |
+|    6 | G     | H     | I     | J     | A     | B     | C     | D     | E     | F     |          5 |
+|    7 | H     | I     | J     | A     | B     | C     | D     | E     | F     | G     |          4 |
+|    8 | I     | J     | A     | B     | C     | D     | E     | F     | G     | H     |          3 |
+|    9 | J     | A     | B     | C     | D     | E     | F     | G     | H     | I     |          2 |
+|   10 | A     | B     | C     | D     | E     | F     | G     | H     | I     | J     |          1 |
+
+On voit que tous les candidats sont admis dans l'ordre inverse de leur ordre de préférence.  Chaque ligne forme un cycle.
+
+* Résolution des cycles
+
+on construit des listes de candidats/formations telle que
+
+ - dans chaque formation apparaissent deux candidats (si > 2: on ne garde que les deux premiers)
+ - chaque candidat apparaît deux fois
+ - la position de chaque candidat est intervertie entre les deux paires où il apparaît: il est une fois premier, une fois seconde.
+ - dans la paire où il est premier, le candidat a une préférence moins élevée pour la formation que dans l'autre (ce qui autorise à tenter l'échange)
+
+Pour faire ça
+
+  - On sélectionne toutes les formations qui contiennent au moins deux candidats qui apparaissent ailleurs.  Pour chacune, on fait toutes les paires possibles de tels candidats (nb les paires sont ordonnées par le rang)
+  - Ensuite, on cherche toutes les paires dans les autres formations qui continuent cette première paire, c'est à dire qui ont au moins un terme en commun avec elle.
+  - On répète jusqu'à avoir soit un cycle, soit fait le tour des formations.
+  - Ensuite, on cherche toutes les combinaisons de formations
+  - Ensuite, on choisit?
+
+* Notes d'optimisation
+
+Quelques propriétés intéressantes des classements. J'appelle candidat non satisfaits les candidats qui après les différentes phases de simplification ont encore des vœux en liste d'attente, qu'ils en aient aussi un admis ou non.
+
+ - chaque formation avec des vœux en liste d'attente a une «SOUPLESSE» S = le nombre de candidats non satisfaits admis.  Les candidats en liste d'attente après le Sième candidat de cette liste de préf normalisée=1 (puisque les préfs > 1 sont potentiellement éliminables) peut être supprimé.
+ - chaque candidat en liste d'attente a une POSITION P qui est sa position dans la liste, c'est-à-dire le nombre de candidats admis à retirer.
+ - S et P ensemble doivent permettre d'éliminer, à chaque phase, certains cycles qui ne résolvent pas, c'est-à-dire qui élimineraient des candidats d'une liste sans les faire admettre dans une autre.
+
+D'où des propriétés supplémentaires des cycles:
+
+ - Pour chaque candidat présent, une position d'arrivée (= P-1).
+ - Hypothétiquement, on pourrait regrouper les cycles seulement si chaque candidat apparaît dans autant de cycles que sa position de départ. Mais
+   - un candidat peut être en attente dans plusieurs formations.
+   - un cycle résolu peut fermer une formation, donc supprimer des vœux etc.
+ - Par contre, une formation ne peut pas apparaître dans plus de cycles que sa SOUPLESSE puisque ça n'aurait aucun sens (mais ça serait un bug de l'algo d'assemblage des cycles, ça ne devrait pas être possible)
+
+* Limites
+
+# @TODO Parties de parcoursup qu'on ne prend pas en charge: gestion du taux de boursiers que PS appelle «ordre d'appel». Gestion des internats.
