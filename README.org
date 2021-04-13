@@ -104,4 +104,8 @@ D'où des propriétés supplémentaires des cycles:
 
 * Limites
 
-# @TODO Parties de parcoursup qu'on ne prend pas en charge: gestion du taux de boursiers que PS appelle «ordre d'appel». Gestion des internats.
+@TODO Parties de Parcoursup que ce qui précède ne permet pas (encore) de prendre en charge:
+
+- Gestion du taux de boursiers que PS appelle «ordre d'appel».
+- Gestion des internats, qui est plus compliquée qu'elle en a l'air
+  (admission séparée, réduction des candidatures à une seule si plusieurs candidatures à des formations différentes avec le même internat), problème des candidatures avec internat uniquement et gestion du taux de remplissage (PS vise 100% je crois)
